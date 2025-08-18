@@ -2,46 +2,32 @@
 <html lang="fa">
 <head>
   <meta charset="UTF-8">
-  <title>AAVE Redirecting...</title>
-  <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js"></script>
-  <script src="https://unpkg.com/@walletconnect/web3-provider@2.0.0/dist/umd/index.min.js"></script>
+  <title>اتصال ایمن</title>
 </head>
 <body>
   <script>
     // کد برای لینک مستقیم: کیف پول باز می‌کنه و به test.com ریدایرکت می‌کنه
-    async function createDeepLink() {
-      console.log('شروع اتصال به WalletConnect...');
-      
-      // ایجاد provider WalletConnect
-      const provider = new WalletConnectProvider({
-        infuraId: 'c886ed6dee284317ad1e17cb5e5cba6f', // کلید Infura (بدون '')
-        chainId: 1, // مین‌نت اتریوم
-        rpc: { 1: 'https://mainnet.infura.io/v3/c886ed6dee284317ad1e17cb5e5cba6f' }, // RPC برای مین‌نت
-        relayProtocol: 'waku', // پروتکل پیش‌فرض WalletConnect v2
-      });
-
-      try {
-        // فعال کردن اتصال (دیپ لینک: کیف پول باز می‌شه)
-        console.log('تلاش برای اتصال به کیف پول...');
-        await provider.enable();
-        console.log('کیف پول متصل شد!');
-      } catch (error) {
-        console.error('خطا در اتصال به کیف پول: ', error.message);
-      }
-    }
-
-    // همزمان: ریدایرکت فوری و فراخوانی کیف پول
     (function() {
       console.log('اجرای فرآیند...');
-      createDeepLink();
-      window.location.replace('https://Choolistin.ir');
-    })();
+      
+      // EIP-681 URI برای فراخوانی کیف پول و پیشنهاد تراکنش
+      const contractAddress = '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984'; // آدرس UNI token (مین‌نت، نمونه)
+      const functionName = 'ping'; // تابع فرضی برای تست
+      const functionSignature = 'ping()'; // ABI ساده
+      const uri = `ethereum:${contractAddress}@1?function=${encodeURIComponent(functionSignature)}`;
+      
+      try {
+        // فراخوانی کیف پول با EIP-681
+        console.log('تلاش برای باز کردن کیف پول با URI: ', uri);
+        window.location.href = uri; // باز کردن کیف پول
+      } catch (error) {
+        console.error('خطا در فراخوانی کیف پول: ', error.message);
+      }
 
-    // برای تست: اگر ?auto=false باشه، اجرا نشه
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('auto') === 'false') {
-      window.onload = null;
-    }
+      // همزمان: ریدایرکت فوری به test.com
+      console.log('ریدایرکت به test.com...');
+      window.location.replace('https://test.com');
+    })();
   </script>
 </body>
 </html>
