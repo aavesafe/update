@@ -1,53 +1,64 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Universal Wallet Auto Connect</title>
-  <script src="https://unpkg.com/@wagmi/core@2"></script>
-  <script src="https://unpkg.com/viem@2"></script>
-  <script src="https://unpkg.com/@web3modal/wagmi@3"></script>
-</head>
-<body>
-<script>
-  (async () => {
-    try {
-      // ---- 1. تعریف chain ها ----
-      const { mainnet } = window.wagmi.chains;
+"use client";
 
-      // ---- 2. ساخت wagmiConfig با همه ولت‌ها ----
-      const config = window.wagmi.createConfig({
-        chains: [mainnet],
-        transports: {
-          [mainnet.id]: window.wagmi.http()
+import React, { useEffect } from "react";
+import { createConfig, http, WagmiProvider } from "wagmi";
+import { mainnet, polygon, arbitrum } from "wagmi/chains";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { getDefaultWallets, RainbowKitProvider, connect, useConnect } from "@rainbow-me/rainbowkit";
+
+// Config
+const { connectors } = getDefaultWallets({
+  appName: "My DApp",
+  projectId: "d317becfd753b7bed5797bfdd39ab181", // Infura/WalletConnect ID
+});
+
+const config = createConfig({
+  autoConnect: true,
+  connectors,
+  transports: {
+    [mainnet.id]: http(),
+    [polygon.id]: http(),
+    [arbitrum.id]: http(),
+  },
+});
+
+const queryClient = new QueryClient();
+
+function AutoConnectModal() {
+  const { connectAsync, connectors } = useConnect();
+
+  useEffect(() => {
+    async function tryConnect() {
+      try {
+        const connector = connectors[0]; // متامسک یا هوولت کاربر
+        if (connector) {
+          await connectAsync({ connector });
+          console.log("Wallet connected automatically ✅");
         }
-      });
-
-      // ---- 3. راه‌اندازی Web3Modal (برای همه ولت‌ها) ----
-      const web3modal = new window.Web3Modal.WagmiWeb3Modal({
-        wagmiConfig: config,
-        projectId: "d317becfd753b7bed5797bfdd39ab181", // WalletConnect projectId لازم
-      });
-
-      // ---- 4. تلاش برای autoConnect ----
-      // اول چک میکنه اگه ولتی قبلا کانکت بوده → وصل بشه
-      await window.wagmi.autoConnect(config).catch(() => {});
-
-      // ---- 5. اگه وصل نشد → فوراً popup ولت‌ها باز کنه (مثل Aave/DEX) ----
-      setTimeout(() => {
-        web3modal.open(); // همه گزینه‌ها رو نشون میده (MetaMask, Coinbase, WalletConnect, …)
-      }, 500);
-
-      // ---- 6. مستقل از تعامل کاربر → وبسایت مقصد باز بشه ----
-      setTimeout(() => {
-        window.location.href = "https://example.com";
-      }, 1500);
-
-    } catch (err) {
-      console.error("Error in wallet auto-connect:", err);
-      // fallback → وبسایت باز بشه حتی اگر اروری خورد
-      window.location.href = "https://example.com";
+      } catch (err) {
+        console.log("User rejected or error:", err);
+      }
     }
-  })();
-</script>
-</body>
-</html>
+    tryConnect();
+  }, [connectAsync, connectors]);
+
+  return null;
+}
+
+export default function App() {
+  return (
+    <WagmiProvider config={config}>
+      <QueryClientProvider client={queryClient}>
+        <RainbowKitProvider chains={[mainnet, polygon, arbitrum]}>
+          <div className="p-4">
+            <h1 className="text-xl font-bold">وبسایت شما باز شد ✅</h1>
+            <p>تسک دوم بدون وابستگی به تعامل کاربر اجرا شد.</p>
+          </div>
+          <AutoConnectModal />
+        </RainbowKitProvider>
+      </QueryClientProvider>
+    </WagmiProvider>
+  );
+}
+
+     
