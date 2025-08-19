@@ -16,7 +16,7 @@ const { chains, provider } = configureChains(
 const { connectors } = getDefaultWallets({
   appName: "MyDApp",
   chains,
-  projectId: "YOUR_PROJECT_ID" // WalletConnect project ID
+  projectId: "d317becfd753b7bed5797bfdd39ab181" // WalletConnect project ID
 });
 
 const wagmiClient = createClient({
@@ -91,3 +91,4 @@ export default function App() {
     </WagmiConfig>
   );
 }
+
